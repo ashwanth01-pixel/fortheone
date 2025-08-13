@@ -7,6 +7,7 @@ import sqlite3
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory, session, redirect
 import shutil
+import shlex
 
 # --------------------------
 # ENSURE AWS CLI INSTALLED
@@ -125,19 +126,23 @@ def run_command_from_claude(prompt):
     if command.strip().startswith("aws "):
         command = command.replace("aws", aws_path, 1)
 
+    # Replace problematic backticks
+    command = command.replace("`", '"')
+
+    # Split command safely
+    command_list = shlex.split(command)
+
     try:
         env = os.environ.copy()
         env["AWS_ACCESS_KEY_ID"] = session["aws_access_key"]
         env["AWS_SECRET_ACCESS_KEY"] = session["aws_secret_key"]
         env["AWS_DEFAULT_REGION"] = session["aws_region"]
-        env["PATH"] = f"/usr/local/bin:{env.get('PATH', '')}"  # ensure subprocess can find aws
+        env["PATH"] = f"/usr/local/bin:{env.get('PATH', '')}"
 
         output = subprocess.check_output(
-            command,
-            shell=True,
+            command_list,
             stderr=subprocess.STDOUT,
-            env=env,
-            executable="/bin/bash"
+            env=env
         )
         return command, output.decode()
     except subprocess.CalledProcessError as e:

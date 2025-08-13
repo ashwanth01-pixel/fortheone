@@ -102,7 +102,12 @@ def run_command_from_claude(prompt):
         env["AWS_SECRET_ACCESS_KEY"] = session["aws_secret_key"]
         env["AWS_DEFAULT_REGION"] = session["aws_region"]
         env["PATH"] = "/usr/local/bin:/usr/local/aws-cli/v2/current/bin:" + env.get("PATH", "")
-        output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, env=env)
+        output = subprocess.check_output(
+            command,
+            shell=True,
+            stderr=subprocess.STDOUT,
+            env=env,
+            executable="/bin/bash"
         return command, output.decode()
     except subprocess.CalledProcessError as e:
         return command, e.output.decode()

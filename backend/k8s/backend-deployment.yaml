@@ -15,9 +15,16 @@ spec:
       containers:
         - name: backend
           image: ashwanth01/ashapp:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
           env:
             - name: SECRET_KEY
               value: "supersecretkey"
-
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 5

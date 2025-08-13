@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: ashwanth01/ashapp:latest
+          image: ashwanth01/ashapp:ci   # use exact tag
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
@@ -23,7 +23,7 @@ spec:
               value: "supersecretkey"
           readinessProbe:
             httpGet:
-              path: /login
+              path: /health    # create /health route in Flask
               port: 5000
             initialDelaySeconds: 5
             periodSeconds: 5

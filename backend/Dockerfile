@@ -1,8 +1,6 @@
-# Use official Python image
-FROM python:3.9-slim
+FROM python:3.11-slim
 
-# Set working directory
-WORKDIR /app
+WORKDIR /app/backend
 
 # Install dependencies for AWS CLI and unzip tools
 RUN apt-get update && apt-get install -y \
@@ -16,19 +14,25 @@ RUN apt-get update && apt-get install -y \
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
     && unzip awscliv2.zip \
     && ./aws/install \
+    && ln -s /usr/local/aws-cli/v2/current/bin/aws /usr/local/bin/aws \
     && rm -rf aws awscliv2.zip
 
 # Ensure AWS CLI is in PATH
-ENV PATH="/usr/local/bin:${PATH}"
+ENV PATH="/usr/local/bin:/usr/local/aws-cli/v2/current/bin:${PATH}"
 
-# Copy app files
-COPY . /app
-
-# Install Python dependencies
+# Copy backend requirements and install Python dependencies
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port
-EXPOSE 5000
+# Copy backend app files
+COPY backend/ .
 
-# Start app
+# Copy frontend files to one level above backend folder
+WORKDIR /app
+COPY frontend/ frontend/
+
+# Reset working dir back to backend for running app.py
+WORKDIR /app/backend
+
+EXPOSE 5000
 CMD ["python", "app.py"]

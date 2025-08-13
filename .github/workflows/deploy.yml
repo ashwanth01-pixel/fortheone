@@ -79,8 +79,6 @@ jobs:
       # 2. Deploy to Kubernetes
       - name: Deploy to Kubernetes
         run: |
-          docker pull ashwanth01/ashapp:ci
-          docker tag ashwanth01/ashapp:ci ashwanth01/ashapp:latest
           kubectl apply -f ./backend/k8s/backend-deployment.yaml
           kubectl apply -f ./backend/k8s/backend-service.yaml
           kubectl rollout status deployment/backend-deployment --timeout=120s

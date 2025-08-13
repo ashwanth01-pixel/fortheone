@@ -6,6 +6,30 @@ import os
 import sqlite3
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory, session, redirect
+# --------------------------
+# ENSURE AWS CLI INSTALLED
+# --------------------------
+import shutil
+
+def ensure_aws_cli():
+    if shutil.which("aws") is None:
+        print("⚡ AWS CLI not found. Installing...")
+        try:
+            import subprocess
+            subprocess.run([
+                "curl", "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip", "-o", "awscliv2.zip"
+            ], check=True)
+            subprocess.run(["unzip", "-o", "awscliv2.zip"], check=True)
+            subprocess.run(["sudo", "./aws/install"], check=True)
+            print("✅ AWS CLI installed successfully.")
+        except subprocess.CalledProcessError as e:
+            print("❌ Failed to install AWS CLI:", e)
+    else:
+        print("✅ AWS CLI already installed.")
+
+# Run installer at startup
+ensure_aws_cli()
+
 
 # --------------------------
 # APP

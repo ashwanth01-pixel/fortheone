@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ASHapp</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div id="sidebar">
+        <h2>History</h2>
+        <ul id="history-list"></ul>
+    </div>
+
+    <div id="main">
+        <header>
+            <button id="burger" aria-label="Toggle sidebar">&#9776;</button>
+            <h1>ASHapp | cloud made easy</h1>
+
+            <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+                <a href="/" class="tab active">ASHapp</a>
+                <a href="/deployer" class="tab">Deployer</a>
+            </div>
+        </header>
+
+        <div id="chat-container">
+            <textarea id="query" placeholder="Type your AWS request here..."></textarea>
+            <button id="send">Submit</button>
+            <pre id="output"></pre>
+            <div id="confirmation-section" class="hidden">
+                <p id="confirmation-text"></p>
+                <button id="accept-btn" class="btn-action">Accept</button>
+                <button id="decline-btn" class="btn-action btn-decline">Decline</button>
+            </div>
+            <div id="reference-section" class="hidden">
+                <button id="reference-btn" class="btn-reference">Reference</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+

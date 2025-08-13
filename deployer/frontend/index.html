@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Deployer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/deployer/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="tabs">
+      <a class="tab" href="/">ASHapp</a>
+      <a class="tab active" href="/deployer">Deployer</a>
+    </div>
+    <div class="userbox">
+      <span id="username"></span>
+      <button id="logout">Logout</button>
+    </div>
+  </div>
+
+  <main class="container">
+    <section class="panel">
+      <h2>Flask App Code</h2>
+      <input id="app-name" placeholder="App Name (letters, numbers, dashes)" />
+      <textarea id="code" placeholder="Paste your Flask app.py code here..."></textarea>
+      <div class="row">
+        <button id="validate">Validate</button>
+        <span id="valid-status"></span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Deploy Settings</h2>
+      <div class="grid">
+        <label>
+          Workload Kind
+          <select id="k8s-kind">
+            <option>Deployment</option>
+            <option>ReplicaSet</option>
+          </select>
+        </label>
+        <label>
+          Replicas
+          <input id="replicas" type="number" min="1" value="2" />
+        </label>
+        <label>
+          Service Type
+          <select id="service-type">
+            <option>ClusterIP</option>
+            <option>NodePort</option>
+            <option>LoadBalancer</option>
+          </select>
+        </label>
+        <label>
+          Container Port
+          <input id="container-port" type="number" value="8080" />
+        </label>
+        <label>
+          Namespace
+          <input id="namespace" type="text" value="default" />
+        </label>
+      </div>
+      <button id="deploy" disabled>Deploy to K8s (ECR + kubectl)</button>
+    </section>
+
+    <section class="panel">
+      <h2>Result</h2>
+      <pre id="result"></pre>
+      <h3>Applied Manifest</h3>
+      <pre id="manifest"></pre>
+      <h3>Logs</h3>
+      <pre id="logs"></pre>
+    </section>
+  </main>
+
+  <script src="/deployer/script.js"></script>
+</body>
+</html>
+

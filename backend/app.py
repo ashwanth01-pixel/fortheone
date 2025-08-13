@@ -9,23 +9,18 @@ from flask import Flask, request, jsonify, send_from_directory, session, redirec
 # --------------------------
 # APP
 # --------------------------
-app = Flask(__name__, static_folder="../frontend", static_url_path="")
-app.secret_key = "supersecretkey"  # TODO: set a secure value via ENV
-
+app = Flask(__name__, static_folder="frontend", static_url_path="")
+app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey")
 
 # --------------------------
-# DEPLOYER: API BLUEPRINT (MOVED TO TOP)
+# DEPLOYER BLUEPRINT
 # --------------------------
-# Register the blueprint BEFORE other routes to ensure it has priority.
 try:
     from deployer.backend import deployer_bp
     app.register_blueprint(deployer_bp)
     print("✅ Successfully registered 'deployer_bp' blueprint.")
 except Exception as e:
-    # This will now print an error if the import fails, which is better for debugging.
     print(f"⚠️ Could not register 'deployer_bp' blueprint. Error: {e}")
-    pass
-
 
 # --------------------------
 # DB INIT
@@ -63,7 +58,7 @@ def get_history():
     return [{"query": r[0], "output": r[1], "timestamp": r[2]} for r in rows]
 
 # --------------------------
-# AWS CLIENT SETUP
+# AWS CLIENT
 # --------------------------
 def get_bedrock_client():
     if "aws_access_key" not in session:
@@ -79,36 +74,28 @@ def ask_bedrock(prompt):
     bedrock_runtime = get_bedrock_client()
     if not bedrock_runtime:
         return "Not logged in to AWS."
-
     body = {
         "anthropic_version": "bedrock-2023-05-31",
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 500,
         "temperature": 0.7,
     }
-
     response = bedrock_runtime.invoke_model(
         modelId="anthropic.claude-3-sonnet-20240229-v1:0",
         contentType="application/json",
         accept="application/json",
         body=json.dumps(body),
     )
-
     result = json.loads(response["body"].read())
     return result["content"][0]["text"].strip()
 
 def run_command_from_claude(prompt):
     command_prompt = (
-        f'You are an expert in AWS CLI. Your job is to return only a valid, complete, and working AWS CLI command '
-        f'in a single line based on the user’s request: "{prompt}". '
-        f'Do not include explanations, line breaks, placeholders, or comments. '
-        f'Always include the correct parameters such as region, resource IDs, and names. '
-        f'Use defaults if not specified (region {session.get("aws_region", "us-east-1")}).'
+        f'You are an expert in AWS CLI. Return a valid, complete AWS CLI command for: "{prompt}". '
+        f'Do not include explanations or placeholders. Default region: {session.get("aws_region", "us-east-1")}'
     )
-
     command = ask_bedrock(command_prompt)
     try:
-        # Use the AWS credentials from the session to run the command
         env = os.environ.copy()
         env["AWS_ACCESS_KEY_ID"] = session["aws_access_key"]
         env["AWS_SECRET_ACCESS_KEY"] = session["aws_secret_key"]
@@ -123,7 +110,7 @@ def run_command_from_claude(prompt):
 # --------------------------
 @app.route("/login/<path:filename>")
 def login_static(filename):
-    return send_from_directory("../login", filename)
+    return send_from_directory("login", filename)
 
 @app.route("/")
 def index():
@@ -133,7 +120,7 @@ def index():
 
 @app.route("/login")
 def login_page():
-    return send_from_directory("../login", "login.html")
+    return send_from_directory("login", "login.html")
 
 # --------------------------
 # ROUTES: API (CHAT)
@@ -153,13 +140,11 @@ def api_login():
             region_name=region,
         )
         identity = sts_client.get_caller_identity()
-
         session["aws_access_key"] = access_key
         session["aws_secret_key"] = secret_key
         session["aws_region"] = region
         session["aws_username"] = identity.get("Arn", "Unknown").split("/")[-1]
         session["aws_account_id"] = identity.get("Account", "")
-
         return jsonify({"success": True, "username": session["aws_username"]})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 400
@@ -183,16 +168,13 @@ def api_user():
 def api_handler():
     if "aws_access_key" not in session:
         return jsonify({"error": "Not logged in"}), 403
-
     data = request.get_json()
     query = data.get("query")
     if not query:
         return jsonify({"error": "No query provided"}), 400
-
     action = query.lower()
     if any(word in action for word in ["create", "delete", "modify", "update"]):
         return jsonify({"confirmation_needed": True, "query": query})
-
     command, output = run_command_from_claude(query)
     formatted_output = f"Command: {command}\n{output.strip()}"
     save_to_history(query, formatted_output)
@@ -202,14 +184,11 @@ def api_handler():
 def api_confirm():
     if "aws_access_key" not in session:
         return jsonify({"error": "Not logged in"}), 403
-
     data = request.get_json()
     query = data.get("query")
     decision = data.get("decision")
-
     if decision.lower() != "accept":
         return jsonify({"output": "Action declined."})
-
     command, output = run_command_from_claude(query)
     formatted_output = f"Command: {command}\n{output.strip()}"
     save_to_history(query, formatted_output)
@@ -222,22 +201,23 @@ def api_history():
     return jsonify(get_history())
 
 # --------------------------
-# DEPLOYER: FRONTEND STATIC
+# DEPLOYER STATIC
 # --------------------------
 @app.route("/deployer")
 def deployer_index():
     if "aws_access_key" not in session:
         return redirect("/login")
-    return send_from_directory("../deployer/frontend", "index.html")
+    return send_from_directory("deployer_frontend", "index.html")
 
 @app.route("/deployer/<path:filename>")
 def deployer_static(filename):
-    return send_from_directory("../deployer/frontend", filename)
+    return send_from_directory("deployer_frontend", filename)
 
 # --------------------------
 # MAIN
 # --------------------------
 if __name__ == "__main__":
     init_db()
-    port = int(os.environ.get("PORT", 6443))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+

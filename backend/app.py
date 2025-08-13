@@ -96,22 +96,23 @@ def run_command_from_claude(prompt):
         f'Do not include explanations or placeholders. Default region: {session.get("aws_region", "us-east-1")}'
     )
     command = ask_bedrock(command_prompt)
+    if command.strip().startswith("aws "):
+        command = command.replace("aws", "/usr/local/aws-cli/v2/current/bin/aws", 1)
     try:
         env = os.environ.copy()
         env["AWS_ACCESS_KEY_ID"] = session["aws_access_key"]
         env["AWS_SECRET_ACCESS_KEY"] = session["aws_secret_key"]
         env["AWS_DEFAULT_REGION"] = session["aws_region"]
-        env["PATH"] = "/usr/local/bin:/usr/local/aws-cli/v2/current/bin:" + env.get("PATH", "")
         output = subprocess.check_output(
             command,
             shell=True,
             stderr=subprocess.STDOUT,
             env=env,
             executable="/bin/bash"
+        )
         return command, output.decode()
     except subprocess.CalledProcessError as e:
         return command, e.output.decode()
-
 # --------------------------
 # ROUTES: STATIC/LOGIN
 # --------------------------

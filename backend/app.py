@@ -1,4 +1,4 @@
-# mainapp
+# mainapp.py
 import boto3
 import subprocess
 import json
@@ -6,16 +6,16 @@ import os
 import sqlite3
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory, session, redirect
+import shutil
+
 # --------------------------
 # ENSURE AWS CLI INSTALLED
 # --------------------------
-import shutil
-
 def ensure_aws_cli():
+    aws_path = "/usr/local/bin/aws"
     if shutil.which("aws") is None:
         print("⚡ AWS CLI not found. Installing...")
         try:
-            import subprocess
             subprocess.run([
                 "curl", "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip", "-o", "awscliv2.zip"
             ], check=True)
@@ -25,11 +25,10 @@ def ensure_aws_cli():
         except subprocess.CalledProcessError as e:
             print("❌ Failed to install AWS CLI:", e)
     else:
-        print("✅ AWS CLI already installed.")
+        print(f"✅ AWS CLI already installed at {aws_path}")
 
 # Run installer at startup
 ensure_aws_cli()
-
 
 # --------------------------
 # APP
@@ -120,13 +119,19 @@ def run_command_from_claude(prompt):
         f'Do not include explanations or placeholders. Default region: {session.get("aws_region", "us-east-1")}'
     )
     command = ask_bedrock(command_prompt)
+
+    # Use full path to AWS CLI
+    aws_path = "/usr/local/bin/aws"
     if command.strip().startswith("aws "):
-        command = command.replace("aws", "/usr/local/aws-cli/v2/current/bin/aws", 1)
+        command = command.replace("aws", aws_path, 1)
+
     try:
         env = os.environ.copy()
         env["AWS_ACCESS_KEY_ID"] = session["aws_access_key"]
         env["AWS_SECRET_ACCESS_KEY"] = session["aws_secret_key"]
         env["AWS_DEFAULT_REGION"] = session["aws_region"]
+        env["PATH"] = f"/usr/local/bin:{env.get('PATH', '')}"  # ensure subprocess can find aws
+
         output = subprocess.check_output(
             command,
             shell=True,
@@ -137,6 +142,7 @@ def run_command_from_claude(prompt):
         return command, output.decode()
     except subprocess.CalledProcessError as e:
         return command, e.output.decode()
+
 # --------------------------
 # ROUTES: STATIC/LOGIN
 # --------------------------
@@ -252,4 +258,3 @@ if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-

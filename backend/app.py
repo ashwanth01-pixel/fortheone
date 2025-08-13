@@ -28,7 +28,6 @@ def ensure_aws_cli():
     else:
         print(f"✅ AWS CLI already installed at {aws_path}")
 
-# Run installer at startup
 ensure_aws_cli()
 
 # --------------------------
@@ -83,7 +82,7 @@ def get_history():
     return [{"query": r[0], "output": r[1], "timestamp": r[2]} for r in rows]
 
 # --------------------------
-# AWS CLIENT
+# AWS CLIENT / BEDROCK
 # --------------------------
 def get_bedrock_client():
     if "aws_access_key" not in session:
@@ -114,6 +113,9 @@ def ask_bedrock(prompt):
     result = json.loads(response["body"].read())
     return result["content"][0]["text"].strip()
 
+# --------------------------
+# RUN AWS CLI COMMAND SAFELY
+# --------------------------
 def run_command_from_claude(prompt):
     command_prompt = (
         f'You are an expert in AWS CLI. Return a valid, complete AWS CLI command for: "{prompt}". '
@@ -121,12 +123,12 @@ def run_command_from_claude(prompt):
     )
     command = ask_bedrock(command_prompt)
 
-    # Use full path to AWS CLI
+    # Full path to AWS CLI
     aws_path = "/usr/local/bin/aws"
     if command.strip().startswith("aws "):
         command = command.replace("aws", aws_path, 1)
 
-    # Replace problematic backticks
+    # Replace backticks (common cause of errors)
     command = command.replace("`", '"')
 
     # Split command safely
@@ -137,7 +139,7 @@ def run_command_from_claude(prompt):
         env["AWS_ACCESS_KEY_ID"] = session["aws_access_key"]
         env["AWS_SECRET_ACCESS_KEY"] = session["aws_secret_key"]
         env["AWS_DEFAULT_REGION"] = session["aws_region"]
-        env["PATH"] = f"/usr/local/bin:{env.get('PATH', '')}"
+        env["PATH"] = "/usr/local/bin:" + env.get("PATH", "")
 
         output = subprocess.check_output(
             command_list,
@@ -149,7 +151,7 @@ def run_command_from_claude(prompt):
         return command, e.output.decode()
 
 # --------------------------
-# ROUTES: STATIC/LOGIN
+# ROUTES
 # --------------------------
 @app.route("/login/<path:filename>")
 def login_static(filename):
@@ -165,9 +167,6 @@ def index():
 def login_page():
     return send_from_directory("login", "login.html")
 
-# --------------------------
-# ROUTES: API (CHAT)
-# --------------------------
 @app.route("/api/login", methods=["POST"])
 def api_login():
     data = request.get_json()

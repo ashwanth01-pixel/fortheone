@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
     && unzip awscliv2.zip \
     && ./aws/install \
-    && ln -s /usr/local/aws-cli/v2/current/bin/aws /usr/local/bin/aws \
+    && ln -sf /usr/local/aws-cli/v2/current/bin/aws /usr/local/bin/aws \
     && rm -rf aws awscliv2.zip
 
 # Ensure AWS CLI is in PATH

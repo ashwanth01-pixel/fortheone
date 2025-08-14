@@ -3,10 +3,14 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-COPY ../deployer ./deployer
-COPY ../deployer_frontend ./deployer_frontend
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy deployer code and frontend
+COPY deployer ./deployer
+COPY deployer_frontend ./deployer_frontend
 
 EXPOSE 5001
 
 CMD ["python", "deployer/backend.py"]
-

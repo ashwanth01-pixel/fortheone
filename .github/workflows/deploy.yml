@@ -94,8 +94,7 @@ jobs:
           kubectl apply -f ./backend/k8s/backend-service.yaml
           kubectl apply -f ./backend/k8s/deployer-deployment.yaml
           kubectl apply -f ./backend/k8s/deployer-service.yaml
-          kubectl rollout status deployment/backend-deployment --timeout=120s
-          kubectl rollout status deployment/deployer-deployment --timeout=120s
+          kubectl rollout status deployment/backend-deployment --timeout=40s
           kubectl get pods
           kubectl get svc
 

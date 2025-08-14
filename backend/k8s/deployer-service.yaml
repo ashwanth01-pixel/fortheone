@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployer-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: deployer
+  template:
+    metadata:
+      labels:
+        app: deployer
+    spec:
+      containers:
+        - name: deployer
+          image: ashwanth01/ashapp-deployer:latest
+          ports:
+            - containerPort: 5001
+          env:
+            - name: SECRET_KEY
+              value: "supersecretkey"
+

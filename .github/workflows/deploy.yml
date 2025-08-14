@@ -13,82 +13,67 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      # 1. Checkout code
+      # 1. Checkout repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Set up Python
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      # ---------------- Linting ----------------
+      # Technology: flake8 (Python Linter)
+      - name: Install Backend Linter
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8
+      - name: Run Backend Lint
+        continue-on-error: true
+        run: flake8 ./backend
+
+      # ---------------- Static Application Security Testing (SAST) ----------------
+      # Technology: CodeQL (Backend SAST)
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
         with:
-          python-version: 3.9
-
-      # 3. Linting (skip failure)
-      - name: Lint Python Code
+          languages: python
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
         continue-on-error: true
+
+      # ---------------- Software Composition Analysis (SCA) ----------------
+      # Technology: Snyk (Dependency Scan)
+      - name: Backend Dependency Scan
         run: |
-          pip install pylint
-          pylint backend/app.py backend/deployer/backend.py
+          npm install -g snyk
+          snyk test || true
 
-      # 4. Static Application Security Testing (SAST)
-      - name: SAST with Bandit
-        continue-on-error: true
+      # ---------------- Unit Tests ----------------
+      # Technology: pytest (Backend Unit Testing)
+      - name: Install Backend Dependencies
         run: |
-          pip install bandit
-          bandit -r backend
-
-      # 5. Software Composition Analysis (SCA)
-      - name: SCA with Safety
-        continue-on-error: true
-        run: |
-          pip install safety
-          safety check --full-report
-
-      # 6. Install dependencies (skip failure)
-      - name: Install Dependencies
-        continue-on-error: true
-        run: pip install -r backend/requirements.txt
-
-      # 7. Run Unit Tests (skip failure)
-      - name: Run Unit Tests
-        continue-on-error: true
-        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
           pip install pytest
-          pytest backend
+      - name: Run Backend Unit Tests
+        continue-on-error: true
+        run: pytest backend/tests
 
-      # 8. Build Docker Images
-      - name: Build Docker Images
-        run: |
-          docker build -t ashwanth01/ashapp-backend:latest ./backend
-          docker build -t ashwanth01/ashapp-deployer:latest -f ./backend/Dockerfile-deployer ./backend
-
-      # 9. Login to Docker Hub
+      # ---------------- Docker Build & Push ----------------
+      # Technology: Docker
       - name: Login to Docker Hub
         run: |
           echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+      - name: Build Backend Docker Image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/3-tier-app-backend:latest ./backend
+      - name: Push Docker Image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/3-tier-app-backend:latest
 
-      # 10. Push Docker Images
-      - name: Push Docker Images
-        run: |
-          docker push ashwanth01/ashapp-backend:latest
-          docker push ashwanth01/ashapp-deployer:latest
-
-      # 11. Dynamic Application Security Testing (DAST)
-      - name: DAST with OWASP ZAP Baseline Scan
-        continue-on-error: true
-        uses: zaproxy/action-baseline@v0.9.0
-        with:
-          target: 'http://backend-service:5000'  # Change if different
-          cmd_options: '-a'
-
-      # 12. Container Image Vulnerability Scan
-      - name: Container Security Scan (Trivy)
+      # ---------------- Container Security Scan ----------------
+      # Technology: Trivy (Container Image Vulnerability Scan)
+      - name: Scan Backend Docker Image
         continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'ashwanth01/ashapp-backend:latest'
-          format: 'table'
-          exit-code: '0'
+          image-ref: ${{ secrets.DOCKER_USERNAME }}/3-tier-app-backend:latest
+          format: table
+          exit-code: 0
 
   # ==========================
   # Continuous Deployment
@@ -98,24 +83,23 @@ jobs:
     needs: ci
 
     steps:
-      # 1. Checkout code
+      # 1. Checkout Repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Deploy to Kubernetes
-      - name: Deploy to Kubernetes
+      # ---------------- Kubernetes Deployment ----------------
+      # Technology: kubectl (Kubernetes Deployment)
+      - name: Deploy Backend
         run: |
-          kubectl apply -f ./backend/k8s/backend-deployment.yaml
-          kubectl apply -f ./backend/k8s/backend-service.yaml
-          kubectl apply -f ./backend/k8s/deployer-deployment.yaml
-          kubectl apply -f ./backend/k8s/deployer-service.yaml
+          kubectl apply -f k8s/
           kubectl rollout status deployment/backend-deployment --timeout=40s
           kubectl get pods
           kubectl get svc
 
-      # 3. Print Flask App URL
-      - name: Print Flask App URL
+      # ---------------- Print App URL ----------------
+      # Technology: kubectl + NodePort
+      - name: Print Backend App URL
         run: |
           NODE_PORT=$(kubectl get svc backend-service -o jsonpath='{.spec.ports[0].nodePort}')
           NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-          echo "Backend Flask app is running at: http://$NODE_IP:$NODE_PORT"
+          echo "Backend app running at: http://$NODE_IP:$NODE_PORT"

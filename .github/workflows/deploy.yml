@@ -105,5 +105,3 @@ jobs:
           NODE_PORT=$(kubectl get svc backend-service -o jsonpath='{.spec.ports[0].nodePort}')
           NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
           echo "Backend Flask app is running at: http://$NODE_IP:$NODE_PORT"
-          NODE_PORT_DEPLOYER=$(kubectl get svc deployer-service -o jsonpath='{.spec.ports[0].nodePort}')
-          echo "Deployer app is running at: http://$NODE_IP:$NODE_PORT_DEPLOYER"

@@ -14,3 +14,4 @@ COPY deployer_frontend ./deployer_frontend
 EXPOSE 5001
 
 CMD ["python", "deployer/backend.py"]
+

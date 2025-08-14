@@ -15,18 +15,18 @@ import shlex
 def ensure_aws_cli():
     aws_path = "/usr/local/bin/aws"
     if shutil.which("aws") is None:
-        print("⚡ AWS CLI not found. Installing...")
+        print("AWS CLI not found. Installing...")
         try:
             subprocess.run([
                 "curl", "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip", "-o", "awscliv2.zip"
             ], check=True)
             subprocess.run(["unzip", "-o", "awscliv2.zip"], check=True)
             subprocess.run(["sudo", "./aws/install"], check=True)
-            print("✅ AWS CLI installed successfully.")
+            print("AWS CLI installed successfully.")
         except subprocess.CalledProcessError as e:
-            print("❌ Failed to install AWS CLI:", e)
+            print("Failed to install AWS CLI:", e)
     else:
-        print(f"✅ AWS CLI already installed at {aws_path}")
+        print(f"AWS CLI already installed at {aws_path}")
 
 ensure_aws_cli()
 

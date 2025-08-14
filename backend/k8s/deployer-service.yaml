@@ -1,23 +1,12 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: Service
 metadata:
-  name: deployer-deployment
+  name: deployer-service
 spec:
-  replicas: 1
   selector:
-    matchLabels:
-      app: deployer
-  template:
-    metadata:
-      labels:
-        app: deployer
-    spec:
-      containers:
-        - name: deployer
-          image: ashwanth01/ashapp-deployer:latest
-          ports:
-            - containerPort: 5001
-          env:
-            - name: SECRET_KEY
-              value: "supersecretkey"
-
+    app: deployer
+  ports:
+    - protocol: TCP
+      port: 5001
+      targetPort: 5001
+  type: ClusterIP

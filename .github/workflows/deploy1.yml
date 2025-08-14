@@ -1,0 +1,119 @@
+name: Full CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # ======================
+  # Continuous Integration
+  # ======================
+  ci:
+    runs-on: self-hosted
+    steps:
+      # 1. Checkout code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      # 3. Linting (skip failure)
+      - name: Lint Python Code
+        continue-on-error: true
+        run: |
+          pip install pylint
+          pylint backend/app.py backend/deployer/backend.py
+
+      # 4. Static Application Security Testing (SAST)
+      - name: SAST with Bandit
+        continue-on-error: true
+        run: |
+          pip install bandit
+          bandit -r backend
+
+      # 5. Software Composition Analysis (SCA)
+      - name: SCA with Safety
+        continue-on-error: true
+        run: |
+          pip install safety
+          safety check --full-report
+
+      # 6. Install dependencies (skip failure)
+      - name: Install Dependencies
+        continue-on-error: true
+        run: pip install -r backend/requirements.txt
+
+      # 7. Run Unit Tests (skip failure)
+      - name: Run Unit Tests
+        continue-on-error: true
+        run: |
+          pip install pytest
+          pytest backend
+
+      # 8. Build Docker Images
+      - name: Build Docker Images
+        run: |
+          docker build -t ashwanth01/ashapp-backend:latest ./backend
+          docker build -t ashwanth01/ashapp-deployer:latest -f ./backend/Dockerfile-deployer ./backend
+
+      # 9. Login to Docker Hub
+      - name: Login to Docker Hub
+        run: |
+          echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      # 10. Push Docker Images
+      - name: Push Docker Images
+        run: |
+          docker push ashwanth01/ashapp-backend:latest
+          docker push ashwanth01/ashapp-deployer:latest
+
+      # 11. Dynamic Application Security Testing (DAST)
+      - name: DAST with OWASP ZAP Baseline Scan
+        continue-on-error: true
+        uses: zaproxy/action-baseline@v0.9.0
+        with:
+          target: 'http://backend-service:5000' # Change if different
+          cmd_options: '-a'
+
+      # 12. Container Image Vulnerability Scan
+      - name: Container Security Scan (Trivy)
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ashwanth01/ashapp-backend:latest'
+          format: 'table'
+          exit-code: '0'
+
+  # ==========================
+  # Continuous Deployment
+  # ==========================
+  cd:
+    runs-on: self-hosted
+    needs: ci
+    steps:
+      # 1. Checkout code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Deploy to Kubernetes
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f ./backend/k8s/backend-deployment.yaml
+          kubectl apply -f ./backend/k8s/backend-service.yaml
+          kubectl apply -f ./backend/k8s/deployer-deployment.yaml
+          kubectl apply -f ./backend/k8s/deployer-service.yaml
+          kubectl rollout status deployment/backend-deployment --timeout=40s
+          kubectl get pods
+          kubectl get svc
+
+      # 3. Print Flask App URL
+      - name: Print Flask App URL
+        run: |
+          NODE_PORT=$(kubectl get svc backend-service -o jsonpath='{.spec.ports[0].nodePort}')
+          NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+          echo "Backend Flask app is running at: http://$NODE_IP:$NODE_PORT"

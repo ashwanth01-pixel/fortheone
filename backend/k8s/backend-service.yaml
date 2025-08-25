@@ -7,7 +7,7 @@ spec:
     app: backend
   type: NodePort
   ports:
-    - port: 5000
-      targetPort: 5000
-      nodePort: 30087
+    - port: 6443
+      targetPort: 6443
+      nodePort: 30064
 

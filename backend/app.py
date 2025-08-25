@@ -1,20 +1,19 @@
-# mainapp.py
+# app.py
 import boto3
 import subprocess
 import json
 import os
 import sqlite3
+import shutil
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory, session, redirect
-import shutil
-import shlex
 
 # --------------------------
 # ENSURE AWS CLI INSTALLED
 # --------------------------
 def ensure_aws_cli():
-    aws_path = "/usr/local/bin/aws"
-    if shutil.which("aws") is None:
+    aws_path = shutil.which("aws")
+    if aws_path is None:
         print("AWS CLI not found. Installing...")
         try:
             subprocess.run([
@@ -22,13 +21,16 @@ def ensure_aws_cli():
             ], check=True)
             subprocess.run(["unzip", "-o", "awscliv2.zip"], check=True)
             subprocess.run(["sudo", "./aws/install"], check=True)
-            print("AWS CLI installed successfully.")
+            aws_path = shutil.which("aws")
+            print(f"AWS CLI installed successfully at {aws_path}")
         except subprocess.CalledProcessError as e:
             print("Failed to install AWS CLI:", e)
+            aws_path = None
     else:
         print(f"AWS CLI already installed at {aws_path}")
+    return aws_path
 
-ensure_aws_cli()
+AWS_CLI_PATH = ensure_aws_cli()
 
 # --------------------------
 # APP
@@ -37,7 +39,12 @@ app = Flask(__name__, static_folder="frontend", static_url_path="")
 app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey")
 
 # --------------------------
-# DEPLOYER BLUEPRINT
+# DEPLOYER FRONTEND PATH
+# --------------------------
+deployer_frontend_path = os.path.join(os.path.dirname(__file__), "deployer_frontend")
+
+# --------------------------
+# DEPLOYER BLUEPRINT (optional)
 # --------------------------
 try:
     from deployer.backend import deployer_bp
@@ -85,11 +92,11 @@ def get_history():
 # AWS CLIENT / BEDROCK
 # --------------------------
 def get_bedrock_client():
-    if "aws_access_key" not in session:
+    if "aws_access_key" not in session or "aws_secret_key" not in session:
         return None
     return boto3.client(
         "bedrock-runtime",
-        region_name=session["aws_region"],
+        region_name=session.get("aws_region", "us-east-1"),
         aws_access_key_id=session["aws_access_key"],
         aws_secret_access_key=session["aws_secret_key"],
     )
@@ -123,14 +130,23 @@ def run_command_from_claude(prompt):
     )
     command = ask_bedrock(command_prompt)
 
-    if command.strip().startswith("aws "):
+    if command.strip().startswith("aws ") and AWS_CLI_PATH:
         command = command.replace("aws", AWS_CLI_PATH, 1)
 
+    # Safe session retrieval
+    aws_access = session.get("aws_access_key")
+    aws_secret = session.get("aws_secret_key")
+    aws_region = session.get("aws_region", "us-east-1")
+
+    if not aws_access or not aws_secret:
+        session.clear()
+        return command, "AWS credentials missing. Session cleared. Please login again."
+
     env = os.environ.copy()
-    env["AWS_ACCESS_KEY_ID"] = session["aws_access_key"]
-    env["AWS_SECRET_ACCESS_KEY"] = session["aws_secret_key"]
-    env["AWS_DEFAULT_REGION"] = session["aws_region"]
-    env["PATH"] = "/usr/local/bin:" + env.get("PATH", "")
+    env["AWS_ACCESS_KEY_ID"] = aws_access
+    env["AWS_SECRET_ACCESS_KEY"] = aws_secret
+    env["AWS_DEFAULT_REGION"] = aws_region
+    env["PATH"] = f"{os.path.dirname(AWS_CLI_PATH)}:" + env.get("PATH", "")
 
     try:
         output = subprocess.check_output(
@@ -141,9 +157,10 @@ def run_command_from_claude(prompt):
         )
         return command, output.decode()
     except subprocess.CalledProcessError as e:
+        if "InvalidClientTokenId" in e.output.decode() or "AuthFailure" in e.output.decode():
+            session.clear()
+            return command, "AWS session invalid. Cleared session. Please login again."
         return command, e.output.decode()
-
-
 
 # --------------------------
 # ROUTES
@@ -154,7 +171,8 @@ def login_static(filename):
 
 @app.route("/")
 def index():
-    if "aws_access_key" not in session:
+    if not session.get("aws_access_key") or not session.get("aws_secret_key"):
+        session.clear()
         return redirect("/login")
     return send_from_directory(app.static_folder, "index.html")
 
@@ -193,25 +211,30 @@ def api_logout():
 
 @app.route("/api/user", methods=["GET"])
 def api_user():
-    if "aws_username" in session:
-        return jsonify({
-            "logged_in": True,
-            "username": session["aws_username"],
-            "region": session.get("aws_region", "")
-        })
-    return jsonify({"logged_in": False})
+    if not session.get("aws_access_key") or not session.get("aws_secret_key"):
+        session.clear()
+        return jsonify({"logged_in": False, "error": "AWS session missing. Please login again."})
+    return jsonify({
+        "logged_in": True,
+        "username": session.get("aws_username", ""),
+        "region": session.get("aws_region", "")
+    })
 
 @app.route("/api/ask", methods=["POST"])
 def api_handler():
-    if "aws_access_key" not in session:
-        return jsonify({"error": "Not logged in"}), 403
+    if not session.get("aws_access_key") or not session.get("aws_secret_key"):
+        session.clear()
+        return jsonify({"error": "AWS credentials missing. Please login again."}), 403
+
     data = request.get_json()
     query = data.get("query")
     if not query:
         return jsonify({"error": "No query provided"}), 400
+
     action = query.lower()
     if any(word in action for word in ["create", "delete", "modify", "update"]):
         return jsonify({"confirmation_needed": True, "query": query})
+
     command, output = run_command_from_claude(query)
     formatted_output = f"Command: {command}\n{output.strip()}"
     save_to_history(query, formatted_output)
@@ -219,13 +242,16 @@ def api_handler():
 
 @app.route("/api/confirm", methods=["POST"])
 def api_confirm():
-    if "aws_access_key" not in session:
-        return jsonify({"error": "Not logged in"}), 403
+    if not session.get("aws_access_key") or not session.get("aws_secret_key"):
+        session.clear()
+        return jsonify({"error": "AWS credentials missing. Please login again."}), 403
+
     data = request.get_json()
     query = data.get("query")
     decision = data.get("decision")
     if decision.lower() != "accept":
         return jsonify({"output": "Action declined."})
+
     command, output = run_command_from_claude(query)
     formatted_output = f"Command: {command}\n{output.strip()}"
     save_to_history(query, formatted_output)
@@ -233,8 +259,9 @@ def api_confirm():
 
 @app.route("/api/history", methods=["GET"])
 def api_history():
-    if "aws_access_key" not in session:
-        return jsonify({"error": "Not logged in"}), 403
+    if not session.get("aws_access_key") or not session.get("aws_secret_key"):
+        session.clear()
+        return jsonify({"error": "AWS credentials missing. Please login again."}), 403
     return jsonify(get_history())
 
 # --------------------------
@@ -242,18 +269,20 @@ def api_history():
 # --------------------------
 @app.route("/deployer")
 def deployer_index():
-    if "aws_access_key" not in session:
+    if not session.get("aws_access_key") or not session.get("aws_secret_key"):
+        session.clear()
         return redirect("/login")
-    return send_from_directory("deployer_frontend", "index.html")
+    return send_from_directory(deployer_frontend_path, "index.html")
 
 @app.route("/deployer/<path:filename>")
 def deployer_static(filename):
-    return send_from_directory("deployer_frontend", filename)
+    return send_from_directory(deployer_frontend_path, filename)
 
 # --------------------------
 # MAIN
 # --------------------------
 if __name__ == "__main__":
     init_db()
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
+

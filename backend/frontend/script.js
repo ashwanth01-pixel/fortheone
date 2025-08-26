@@ -52,6 +52,9 @@ let lastAction = "";
 let lastCLICommand = "";
 let awsRegion = "us-east-1"; // Default AWS region
 
+// --------------------------
+// Sidebar toggle + load history
+// --------------------------
 burger.onclick = function () {
     if (sidebar.style.display === "block") {
         sidebar.style.display = "none";
@@ -61,6 +64,9 @@ burger.onclick = function () {
     }
 };
 
+// --------------------------
+// Send button
+// --------------------------
 sendBtn.onclick = async function () {
     const query = queryInput.value.trim();
     if (!query) return;
@@ -87,8 +93,14 @@ sendBtn.onclick = async function () {
     } else {
         outputPre.textContent = data.output;
     }
+
+    // Refresh history immediately after command execution
+    loadHistory();
 };
 
+// --------------------------
+// Accept / Decline
+// --------------------------
 acceptBtn.onclick = async function () {
     confirmationSection.classList.add("hidden");
     outputPre.textContent = "Processing your request...";
@@ -104,6 +116,9 @@ acceptBtn.onclick = async function () {
 
     lastCLICommand = confirmData.output || lastCLICommand;
     updateReferenceButton(lastCLICommand || lastAction);
+
+    // Refresh history after confirmation
+    loadHistory();
 };
 
 declineBtn.onclick = function () {
@@ -111,6 +126,9 @@ declineBtn.onclick = function () {
     outputPre.textContent = "Action declined.";
 };
 
+// --------------------------
+// Reference button
+// --------------------------
 referenceBtn.onclick = function () {
     const url = getReferenceURL(lastCLICommand || lastAction, awsRegion);
     if (url) {
@@ -120,14 +138,19 @@ referenceBtn.onclick = function () {
     }
 };
 
+// --------------------------
+// Load history
+// --------------------------
 async function loadHistory() {
     let res = await fetch("/api/history");
     let history = await res.json();
     let list = document.getElementById("history-list");
     list.innerHTML = "";
     history.forEach(item => {
+        // Format timestamp without fractional seconds
+        let timestamp = item.timestamp.split(".")[0].replace("T", " ");
         let li = document.createElement("li");
-        li.innerHTML = `<span class="history-time">${item.timestamp}</span> - <span class="history-query">${item.query}</span>`;
+        li.innerHTML = `<span class="history-time">${timestamp}</span> - <span class="history-query">${item.query}</span>`;
         li.onclick = () => {
             outputPre.textContent = item.output;
             lastQuery = item.query;
@@ -139,6 +162,18 @@ async function loadHistory() {
     });
 }
 
+// --------------------------
+// Auto-refresh every 10 seconds
+// --------------------------
+setInterval(() => {
+    if (sidebar.style.display === "block") {
+        loadHistory();
+    }
+}, 5000);
+
+// --------------------------
+// Helpers
+// --------------------------
 function clearInteraction() {
     outputPre.textContent = "";
     confirmationSection.classList.add("hidden");

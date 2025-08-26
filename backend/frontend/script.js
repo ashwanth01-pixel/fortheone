@@ -163,7 +163,7 @@ async function loadHistory() {
 }
 
 // --------------------------
-// Auto-refresh every 10 seconds
+// Auto-refresh every 50 seconds
 // --------------------------
 setInterval(() => {
     if (sidebar.style.display === "block") {

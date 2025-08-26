@@ -16,7 +16,6 @@ const deployBtn = document.getElementById("deploy");
 const k8sKindEl = document.getElementById("k8s-kind");
 const replicasEl = document.getElementById("replicas");
 const serviceTypeEl = document.getElementById("service-type");
-const containerPortEl = document.getElementById("container-port");
 const namespaceEl = document.getElementById("namespace");
 const resultPre = document.getElementById("result");
 const manifestPre = document.getElementById("manifest");
@@ -114,7 +113,7 @@ deployBtn.onclick = async () => {
     k8s_kind: k8sKindEl.value,
     replicas: parseInt(replicasEl.value || "2"),
     service_type: serviceTypeEl.value,
-    container_port: parseInt(containerPortEl.value || "5000"),
+    container_port: 5000,  // fixed port
     namespace: namespaceEl.value || "default"
   };
 
@@ -132,7 +131,6 @@ deployBtn.onclick = async () => {
     return;
   }
 
-  // Display result with clickable service URL
   const url = data.service_url_hint || "(Check: kubectl get svc)";
   resultPre.innerHTML = `
     ✅ Deployed image: ${data.image}<br/>

@@ -3,10 +3,10 @@ import boto3
 import subprocess
 import json
 import os
-import sqlite3
 import shutil
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory, session, redirect
+import requests
 
 # --------------------------
 # ENSURE AWS CLI INSTALLED
@@ -33,7 +33,7 @@ def ensure_aws_cli():
 AWS_CLI_PATH = ensure_aws_cli()
 
 # --------------------------
-# APP
+# FLASK APP
 # --------------------------
 app = Flask(__name__, static_folder="frontend", static_url_path="")
 app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey")
@@ -44,7 +44,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey")
 deployer_frontend_path = os.path.join(os.path.dirname(__file__), "deployer_frontend")
 
 # --------------------------
-# DEPLOYER BLUEPRINT (optional)
+# DEPLOYER BLUEPRINT
 # --------------------------
 try:
     from deployer.backend import deployer_bp
@@ -54,39 +54,33 @@ except Exception as e:
     print(f"⚠️ Could not register 'deployer_bp' blueprint. Error: {e}")
 
 # --------------------------
-# DB INIT
+# SPRING BOOT URL
 # --------------------------
-def init_db():
-    conn = sqlite3.connect("history.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            query TEXT NOT NULL,
-            output TEXT NOT NULL,
-            timestamp TEXT NOT NULL
-        )
-    """)
-    conn.commit()
-    conn.close()
+SPRING_BOOT_URL = os.environ.get("SPRING_BOOT_URL", "http://localhost:8081")
 
+# --------------------------
+# HISTORY FUNCTIONS
+# --------------------------
 def save_to_history(query, output):
-    conn = sqlite3.connect("history.db")
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO history (query, output, timestamp) VALUES (?, ?, ?)",
-        (query, output, datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
-    )
-    conn.commit()
-    conn.close()
+    """Save history via Spring Boot service directly."""
+    payload = {"query": query, "output": output}
+    try:
+        response = requests.post(f"{SPRING_BOOT_URL}/history/save", json=payload)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print("Error saving history:", e)
+        return None
 
 def get_history():
-    conn = sqlite3.connect("history.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT query, output, timestamp FROM history ORDER BY id DESC")
-    rows = cursor.fetchall()
-    conn.close()
-    return [{"query": r[0], "output": r[1], "timestamp": r[2]} for r in rows]
+    """Get history from Spring Boot service directly."""
+    try:
+        response = requests.get(f"{SPRING_BOOT_URL}/history/list")
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print("Error fetching history:", e)
+        return []
 
 # --------------------------
 # AWS CLIENT / BEDROCK
@@ -133,7 +127,6 @@ def run_command_from_claude(prompt):
     if command.strip().startswith("aws ") and AWS_CLI_PATH:
         command = command.replace("aws", AWS_CLI_PATH, 1)
 
-    # Safe session retrieval
     aws_access = session.get("aws_access_key")
     aws_secret = session.get("aws_secret_key")
     aws_region = session.get("aws_region", "us-east-1")
@@ -149,12 +142,7 @@ def run_command_from_claude(prompt):
     env["PATH"] = f"{os.path.dirname(AWS_CLI_PATH)}:" + env.get("PATH", "")
 
     try:
-        output = subprocess.check_output(
-            command,
-            shell=True,
-            stderr=subprocess.STDOUT,
-            env=env
-        )
+        output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, env=env)
         return command, output.decode()
     except subprocess.CalledProcessError as e:
         if "InvalidClientTokenId" in e.output.decode() or "AuthFailure" in e.output.decode():
@@ -262,7 +250,8 @@ def api_history():
     if not session.get("aws_access_key") or not session.get("aws_secret_key"):
         session.clear()
         return jsonify({"error": "AWS credentials missing. Please login again."}), 403
-    return jsonify(get_history())
+    history = get_history()
+    return jsonify(history)
 
 # --------------------------
 # DEPLOYER STATIC
@@ -282,7 +271,6 @@ def deployer_static(filename):
 # MAIN
 # --------------------------
 if __name__ == "__main__":
-    init_db()
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
 

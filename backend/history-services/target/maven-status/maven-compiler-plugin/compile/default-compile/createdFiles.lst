@@ -1,0 +1,4 @@
+com/example/historyservice/repository/HistoryRepository.class
+com/example/historyservice/entity/History.class
+com/example/historyservice/HistoryServiceApplication.class
+com/example/historyservice/controller/HistoryController.class

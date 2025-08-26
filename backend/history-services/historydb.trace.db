@@ -1,0 +1,9 @@
+2025-08-26 18:06:00.982033Z jdbc[3]: exception
+org.h2.jdbc.JdbcSQLDataException: Value too long for column "OUTPUT CHARACTER VARYING(255)": "U&'Command: /usr/local/bin/aws ec2 describe-instances --query ''Reservations[].I... (1199)"; SQL statement:
+INSERT INTO "PUBLIC"."HISTORY_COPY_3_0"("ID", "OUTPUT", "QUERY", "TIMESTAMP") OVERRIDING SYSTEM VALUE SELECT "ID", "OUTPUT", "QUERY", "TIMESTAMP" FROM "PUBLIC"."HISTORY" [22001-224]
+2025-08-26 18:14:45.913659Z jdbc[3]: exception
+org.h2.jdbc.JdbcSQLDataException: Value too long for column "OUTPUT CHARACTER VARYING(255)": "U&'Command: /usr/local/bin/aws ec2 describe-instances --query ''Reservations[].I... (1199)"; SQL statement:
+INSERT INTO "PUBLIC"."HISTORY_COPY_3_0"("ID", "OUTPUT", "QUERY", "TIMESTAMP") OVERRIDING SYSTEM VALUE SELECT "ID", "OUTPUT", "QUERY", "TIMESTAMP" FROM "PUBLIC"."HISTORY" [22001-224]
+2025-08-26 18:19:44.284246Z jdbc[3]: exception
+org.h2.jdbc.JdbcSQLDataException: Value too long for column "OUTPUT CHARACTER VARYING(255)": "U&'Command: /usr/local/bin/aws ec2 describe-instances --query ''Reservations[].I... (1199)"; SQL statement:
+INSERT INTO "PUBLIC"."HISTORY_COPY_3_0"("ID", "OUTPUT", "QUERY", "TIMESTAMP") OVERRIDING SYSTEM VALUE SELECT "ID", "OUTPUT", "QUERY", "TIMESTAMP" FROM "PUBLIC"."HISTORY" [22001-224]

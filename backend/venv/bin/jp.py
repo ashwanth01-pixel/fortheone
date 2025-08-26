@@ -1,4 +1,4 @@
-#!/home/ubuntu/ashappa/backend/venv/bin/python3
+#!/home/ubuntu/ashappwork/backend/venv/bin/python
 
 import sys
 import json

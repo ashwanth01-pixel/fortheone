@@ -14,7 +14,7 @@
     </div>
     <div class="userbox">
       <span id="username"></span>
-      <button id="logout">Logout</button>
+      <button id="logout">Docker Logout </button>
     </div>
   </div>
 
@@ -22,11 +22,13 @@
 
     <!-- Docker Login Panel -->
     <section class="panel" id="docker-login-panel">
-      <h2>Docker Hub Login</h2>
-      <input id="docker-user" placeholder="Docker Hub Username" />
-      <input id="docker-token" placeholder="Docker Hub Token/Password" type="password" />
-      <button id="docker-login-btn">Login to Docker Hub</button>
-      <span id="docker-login-status"></span>
+      <h2 style="text-align:center;color:#a5b4fc;">Docker Hub Login</h2>
+      <div class="docker-login-center">
+        <input id="docker-user" placeholder="Docker Hub Username" />
+        <input id="docker-token" placeholder="Docker Hub Token/Password" type="password" />
+        <button id="docker-login-btn">Login to Docker Hub</button>
+        <span id="docker-login-status"></span>
+      </div>
     </section>
 
     <!-- App Panels (hidden until login success) -->

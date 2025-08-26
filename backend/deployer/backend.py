@@ -31,6 +31,14 @@ def docker_login():
     session["docker_token"] = token
     return jsonify({"success": True, "message": f"Logged in to Docker Hub as {user}"})
 
+# -------------------------
+# Docker Logout
+# -------------------------
+@deployer_bp.route("/docker-logout", methods=["POST"])
+def docker_logout():
+    session.pop("docker_user", None)
+    session.pop("docker_token", None)
+    return jsonify({"success": True})
 
 # -------------------------
 # Validate Flask code

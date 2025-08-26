@@ -1,66 +1,62 @@
 #!/bin/bash
-set -euo pipefail
 
-# Update packages
-sudo apt-get update
+# Exit on any error
+set -e
 
-# ----------------------------
-# Install Docker (official)
-# ----------------------------
-sudo apt-get remove -y docker docker-engine docker.io containerd runc || true
-sudo apt-get update
-sudo apt-get install -y ca-certificates curl gnupg lsb-release
+echo "===== Updating system packages ====="
+sudo apt update
+sudo apt upgrade -y
+sudo apt install -y python3-pip python3-venv unzip curl apt-transport-https ca-certificates software-properties-common
 
-# Add Docker's official GPG key
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "===== Installing Docker ====="
+# Remove old versions
+sudo apt remove -y docker docker-engine docker.io containerd runc || true
 
-# Set up the repository
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Install Docker Engine
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# Enable and start Docker
+# Install Docker
+sudo apt install -y docker.io
 sudo systemctl enable docker
 sudo systemctl start docker
 
-# ----------------------------
-# Set hostname to kmaster
-# ----------------------------
-sudo hostnamectl set-hostname kmaster
+# Add current user to docker group
+sudo groupadd -f docker
+sudo usermod -aG docker $USER
+newgrp docker || true
 
-# ----------------------------
-# Initialize Kubernetes cluster
-# ----------------------------
+echo "===== Setting up backend Flask environment ====="
+cd ~/ashappa/backend
+
+# Remove broken venv if exists
+rm -rf venv
+
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Upgrade pip
+pip install --upgrade pip
+
+# Install Python dependencies
+if [ -f requirements.txt ]; then
+    pip install -r requirements.txt
+else
+    echo "requirements.txt not found, installing Flask only"
+    pip install flask
+fi
+
+echo "===== Initializing Kubernetes cluster ====="
 sudo kubeadm init
 
-# ----------------------------
-# Configure kubectl for current user
-# ----------------------------
+echo "===== Setting up kubeconfig for current user ====="
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
-# ----------------------------
-# Check the status of nodes
-# ----------------------------
-kubectl get nodes
-
-# ----------------------------
-# Apply Weave Net CNI plugin
-# ----------------------------
+echo "===== Deploying Weave Net pod network ====="
 kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml
 
-# ----------------------------
-# Check taints on kmaster node
-# ----------------------------
-kubectl describe node kmaster | grep Taint
+echo "===== Untainting control-plane node so pods can run on it ====="
+kubectl taint node $(hostname) node-role.kubernetes.io/control-plane:NoSchedule- || true
 
-# ----------------------------
-# Remove control-plane taint to allow scheduling pods on master
-# ----------------------------
-kubectl taint node kmaster node-role.kubernetes.io/control-plane:NoSchedule- || true
+echo "===== Setup complete. Starting Flask app ====="
+python3 app.py
+

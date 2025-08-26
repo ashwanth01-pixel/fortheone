@@ -21,13 +21,26 @@ const resultPre = document.getElementById("result");
 const manifestPre = document.getElementById("manifest");
 const logsPre = document.getElementById("logs");
 
-// Logout
+// -------------------------
+// Docker Logout (top button)
+// -------------------------
 logoutBtn.onclick = async () => {
-  await fetch("/api/logout", { method: "POST" });
-  location.href = "/login";
+  // Clear Docker session on backend
+  await fetch("/deployer-api/docker-logout", { method: "POST" });
+
+  // Hide deployer UI
+  deployerUI.style.display = "none";
+
+  // Show Docker login panel again
+  document.getElementById("docker-login-panel").style.display = "flex";
+  dockerLoginStatus.textContent = "";
+  dockerUserEl.value = "";
+  dockerTokenEl.value = "";
 };
 
+// -------------------------
 // Fetch logged-in user
+// -------------------------
 (async function fetchUser() {
   const res = await fetch("/api/user");
   const data = await res.json();
@@ -38,7 +51,9 @@ logoutBtn.onclick = async () => {
   }
 })();
 
+// -------------------------
 // Docker login
+// -------------------------
 dockerLoginBtn.onclick = async () => {
   dockerLoginStatus.textContent = "Logging in...";
   const payload = {
@@ -64,7 +79,9 @@ dockerLoginBtn.onclick = async () => {
   }
 };
 
+// -------------------------
 // Validate code
+// -------------------------
 validateBtn.onclick = async () => {
   validStatus.textContent = "";
   resultPre.textContent = "";
@@ -101,7 +118,9 @@ validateBtn.onclick = async () => {
   }
 };
 
+// -------------------------
 // Deploy
+// -------------------------
 deployBtn.onclick = async () => {
   resultPre.textContent = "Deploying… this will build, push, then kubectl apply.";
   manifestPre.textContent = "";

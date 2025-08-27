@@ -56,7 +56,7 @@ except Exception as e:
 # --------------------------
 # SPRING BOOT URL
 # --------------------------
-SPRING_BOOT_URL = os.environ.get("SPRING_BOOT_URL", "http://localhost:8081")
+SPRING_BOOT_URL = os.environ.get("SPRING_BOOT_URL", "http://34.233.136.168:8081")
 
 # --------------------------
 # HISTORY FUNCTIONS
@@ -271,6 +271,6 @@ def deployer_static(filename):
 # MAIN
 # --------------------------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
 

@@ -3,9 +3,15 @@ import tempfile
 import subprocess
 import re
 from flask import Blueprint, request, jsonify, session
+import shutil
 
-# Define Blueprint
+# Blueprint
 deployer_bp = Blueprint("deployer_bp", __name__, url_prefix="/deployer-api")
+
+# Ensure environment paths (use host-mounted binaries)
+DOCKER_BIN = shutil.which("docker") or "/usr/bin/docker"
+KUBECTL_BIN = shutil.which("kubectl") or "/usr/bin/kubectl"
+KUBECONFIG = os.environ.get("KUBECONFIG", os.path.expanduser("~/.kube/config"))
 
 # -------------------------
 # Docker Login
@@ -20,7 +26,7 @@ def docker_login():
         return jsonify({"success": False, "error": "Missing username or token"}), 400
 
     try:
-        cmd = ["docker", "login", "-u", user, "--password-stdin"]
+        cmd = [DOCKER_BIN, "login", "-u", user, "--password-stdin"]
         proc = subprocess.run(cmd, input=token.encode(), capture_output=True)
         if proc.returncode != 0:
             return jsonify({"success": False, "error": proc.stderr.decode()}), 400
@@ -57,7 +63,6 @@ def validate():
 
     return jsonify({"success": True, "valid": True, "app_name": app_name})
 
-
 # -------------------------
 # Deploy
 # -------------------------
@@ -85,11 +90,9 @@ def deploy():
             app_path = os.path.join(tmpdir, "app.py")
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
 
-            # Write Flask app
             with open(app_path, "w") as f:
                 f.write(code)
 
-            # Write Dockerfile
             with open(dockerfile_path, "w") as f:
                 f.write(f"""
 FROM python:3.10-slim
@@ -101,14 +104,14 @@ CMD ["python", "app.py"]
 """)
 
             # Build image
-            cmd = ["docker", "build", "-t", remote_tag, tmpdir]
+            cmd = [DOCKER_BIN, "build", "-t", remote_tag, tmpdir]
             proc = subprocess.run(cmd, capture_output=True)
             logs.append(proc.stdout.decode() + proc.stderr.decode())
             if proc.returncode != 0:
                 return jsonify({"success": False, "error": "Docker build failed", "logs": logs})
 
             # Push image
-            cmd = ["docker", "push", remote_tag]
+            cmd = [DOCKER_BIN, "push", remote_tag]
             proc = subprocess.run(cmd, capture_output=True)
             logs.append(proc.stdout.decode() + proc.stderr.decode())
             if proc.returncode != 0:
@@ -157,8 +160,8 @@ spec:
             with open(manifest_file, "w") as f:
                 f.write(deployment_yaml)
 
-            # Apply manifest
-            cmd = ["kubectl", "apply", "-f", manifest_file]
+            # Apply manifest with host kubeconfig
+            cmd = [KUBECTL_BIN, "--kubeconfig", KUBECONFIG, "apply", "-f", manifest_file]
             proc = subprocess.run(cmd, capture_output=True)
             logs.append(proc.stdout.decode() + proc.stderr.decode())
             if proc.returncode != 0:
@@ -170,7 +173,7 @@ spec:
                 })
 
             # Get service info
-            svc_info = subprocess.getoutput(f"kubectl get svc {app_name}-svc -n {namespace} -o json")
+            svc_info = subprocess.getoutput(f"{KUBECTL_BIN} --kubeconfig {KUBECONFIG} get svc {app_name}-svc -n {namespace} -o json")
             import json
             try:
                 svc_json = json.loads(svc_info)

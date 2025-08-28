@@ -1,0 +1,12 @@
+docker build -t ashwanth01/ashapp-backend:latest .
+
+docker run -d --name ashapp-backend \
+  -p 5000:5000 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v $(which docker):/usr/bin/docker \
+  -v $(which kubectl):/usr/bin/kubectl \
+  -v $HOME/.kube:/home/appuser/.kube \
+  -e KUBECONFIG=/home/appuser/.kube/config \
+  --user root \
+  ashwanth01/ashapp-backend:latest
+

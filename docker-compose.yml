@@ -1,0 +1,31 @@
+version: '3.9'
+
+services:
+  flask-app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ashapp-backend
+    ports:
+      - "5000:5000"
+    user: root
+    environment:
+      - KUBECONFIG=/home/appuser/.kube/config
+      - HISTORY_SERVICE_URL=http://history-service:8081  # Flask can call History Service
+    volumes:
+      - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
+      - /usr/bin/kubectl:/usr/bin/kubectl
+      - $HOME/.kube:/home/appuser/.kube
+    depends_on:
+      - history-service
+
+  history-service:
+    build:
+      context: ./backend/history-services
+      dockerfile: Dockerfile
+    container_name: history-service
+    ports:
+      - "8081:8081"
+

@@ -10,3 +10,175 @@ docker run -d --name ashapp-backend \
   --user root \
   ashwanth01/ashapp-backend:latest
 
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployer-app
+  labels:
+    app: deployer-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: deployer-app
+  template:
+    metadata:
+      labels:
+        app: deployer-app
+    spec:
+      containers:
+      - name: deployer-app
+        image: ashwanth01/deployer-app:latest
+        ports:
+        - containerPort: 5001
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: deployer-app
+spec:
+  selector:
+    app: deployer-app
+  ports:
+    - protocol: TCP
+      port: 5001
+      targetPort: 5001
+  type: ClusterIP
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-app
+  labels:
+    app: flask-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flask-app
+  template:
+    metadata:
+      labels:
+        app: flask-app
+    spec:
+      containers:
+      - name: flask-app
+        image: ashwanth01/flask-app:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: KUBECONFIG
+          value: "/home/appuser/.kube/config"
+        securityContext:
+          runAsUser: 0   # run as root inside the pod
+        volumeMounts:
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+        - name: kube-bin
+          mountPath: /usr/bin/docker
+          subPath: docker
+        - name: kube-bin
+          mountPath: /usr/bin/kubectl
+          subPath: kubectl
+        - name: kubeconfig
+          mountPath: /home/appuser/.kube
+      volumes:
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+      - name: kube-bin
+        hostPath:
+          path: /usr/bin   # this folder contains docker + kubectl on your node
+      - name: kubeconfig
+        hostPath:
+          path: /home/ubuntu/.kube   # adjust if kubeconfig is elsewhere
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-app
+spec:
+  selector:
+    app: flask-app
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+  type: NodePort
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: history-service
+  labels:
+    app: history-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: history-service
+  template:
+    metadata:
+      labels:
+        app: history-service
+    spec:
+      containers:
+      - name: history-service
+        image: ashwanth01/history-service:latest
+        ports:
+        - containerPort: 8081
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: history-service
+spec:
+  selector:
+    app: history-service
+  ports:
+    - protocol: TCP
+      port: 8081
+      targetPort: 8081
+  type: ClusterIP
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: login
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: login
+  template:
+    metadata:
+      labels:
+        app: login
+    spec:
+      containers:
+      - name: login
+        image: ashwanth01/ashapp-login:latest
+        ports:
+        - containerPort: 80
+apiVersion: v1
+kind: Service
+metadata:
+  name: login
+spec:
+  type: ClusterIP
+  selector:
+    app: login
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+
+
+
+

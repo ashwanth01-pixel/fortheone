@@ -56,7 +56,7 @@ except Exception as e:
 # --------------------------
 # SPRING BOOT URL
 # --------------------------
-SPRING_BOOT_URL = os.environ.get("SPRING_BOOT_URL", "http://54.167.31.216:8081")
+SPRING_BOOT_URL = os.environ.get("SPRING_BOOT_URL", "http://history-service:8081")
 
 # --------------------------
 # HISTORY FUNCTIONS

@@ -5,7 +5,7 @@ metadata:
   labels:
     app: flask-app
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: flask-app
@@ -22,4 +22,29 @@ spec:
         env:
         - name: PYTHONUNBUFFERED
           value: "1"
+        - name: KUBECONFIG
+          value: "/home/appuser/.kube/config"
+        securityContext:
+          runAsUser: 0   # run as root inside the pod
+        volumeMounts:
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+        - name: kube-bin
+          mountPath: /usr/bin/docker
+          subPath: docker
+        - name: kube-bin
+          mountPath: /usr/bin/kubectl
+          subPath: kubectl
+        - name: kubeconfig
+          mountPath: /home/appuser/.kube
+      volumes:
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+      - name: kube-bin
+        hostPath:
+          path: /usr/bin   # this folder contains docker + kubectl on your node
+      - name: kubeconfig
+        hostPath:
+          path: /home/ubuntu/.kube   # adjust if kubeconfig is elsewhere
 

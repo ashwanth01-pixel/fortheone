@@ -132,7 +132,6 @@ def run_command_from_claude(prompt):
     if not AWS_CLI_PATH:
         return command, "AWS CLI path not found in container."
 
-    # Replace 'aws' in command with full path
     if command.strip().startswith("aws "):
         command = command.replace("aws", AWS_CLI_PATH, 1)
 
@@ -160,23 +159,45 @@ def run_command_from_claude(prompt):
         return command, err
 
 # --------------------------
-# ROUTES
+# REACT LOGIN ROUTES
 # --------------------------
-@app.route("/login/<path:filename>")
-def login_static(filename):
-    return send_from_directory("login", filename)
+login_build_path = os.path.join(os.path.dirname(__file__), "login", "build")
 
-@app.route("/login")
-def login_page():
-    return send_from_directory("login", "login.html")
+@app.route("/login", defaults={"path": ""})
+@app.route("/login/<path:path>")
+def serve_login(path):
+    full_path = os.path.join(login_build_path, path)
+    if path != "" and os.path.exists(full_path):
+        return send_from_directory(login_build_path, path)
+    return send_from_directory(login_build_path, "index.html")
 
+# --------------------------
+# MAIN ROUTE (AshApp)
+# --------------------------
 @app.route("/")
 def index():
     if not session.get("aws_access_key") or not session.get("aws_secret_key"):
         session.clear()
         return redirect("/login")
-    return send_from_directory(app.static_folder, "index.html")
+    return send_from_directory(app.static_folder, "index.html")  # frontend/ -> AshApp
 
+# --------------------------
+# DEPLOYER STATIC
+# --------------------------
+@app.route("/deployer")
+def deployer_index():
+    if not session.get("aws_access_key") or not session.get("aws_secret_key"):
+        session.clear()
+        return redirect("/login")
+    return send_from_directory(deployer_frontend_path, "index.html")
+
+@app.route("/deployer/<path:filename>")
+def deployer_static(filename):
+    return send_from_directory(deployer_frontend_path, filename)
+
+# --------------------------
+# API ROUTES
+# --------------------------
 @app.route("/api/login", methods=["POST"])
 def api_login():
     data = request.get_json()
@@ -197,6 +218,7 @@ def api_login():
         session["aws_region"] = region
         session["aws_username"] = identity.get("Arn", "Unknown").split("/")[-1]
         session["aws_account_id"] = identity.get("Account", "")
+        print("Login successful:", session["aws_username"])
         return jsonify({"success": True, "username": session["aws_username"]})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 400
@@ -224,7 +246,6 @@ def api_handler():
     if not query:
         return jsonify({"error": "No query provided"}), 400
 
-    # Confirm destructive actions
     action = query.lower()
     if any(word in action for word in ["create", "delete", "modify", "update"]):
         return jsonify({"confirmation_needed": True, "query": query})
@@ -251,20 +272,6 @@ def api_confirm():
 def api_history():
     history = get_history()
     return jsonify(history)
-
-# --------------------------
-# DEPLOYER STATIC
-# --------------------------
-@app.route("/deployer")
-def deployer_index():
-    if not session.get("aws_access_key") or not session.get("aws_secret_key"):
-        session.clear()
-        return redirect("/login")
-    return send_from_directory(deployer_frontend_path, "index.html")
-
-@app.route("/deployer/<path:filename>")
-def deployer_static(filename):
-    return send_from_directory(deployer_frontend_path, filename)
 
 # --------------------------
 # MAIN

@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: deployer-app
+  name: flask-app
   labels:
-    app: deployer-app
+    app: flask-app
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
-      app: deployer-app
+      app: flask-app
   template:
     metadata:
       labels:
-        app: deployer-app
+        app: flask-app
     spec:
       containers:
-      - name: deployer-app
-        image: ashwanth01/deployer-app:latest
+      - name: flask-app
+        image: ashwanth01/flask-app:latest
         ports:
-        - containerPort: 5001
+        - containerPort: 5000
         env:
         - name: PYTHONUNBUFFERED
           value: "1"

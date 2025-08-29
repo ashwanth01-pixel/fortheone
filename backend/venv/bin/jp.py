@@ -1,4 +1,4 @@
-#!/home/ubuntu/ashappwork/backend/venv/bin/python
+#!/home/ubuntu/comp/clouddeployer/backend/venv/bin/python3
 
 import sys
 import json

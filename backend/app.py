@@ -1,4 +1,4 @@
-# app.py
+# app.py (Main AshApp)
 import boto3
 import subprocess
 import json
@@ -37,21 +37,6 @@ def ensure_aws_cli():
     return aws_path
 
 AWS_CLI_PATH = ensure_aws_cli()
-
-# --------------------------
-# DEPLOYER FRONTEND PATH
-# --------------------------
-deployer_frontend_path = os.path.join(os.path.dirname(__file__), "deployer_frontend")
-
-# --------------------------
-# DEPLOYER BLUEPRINT
-# --------------------------
-try:
-    from deployer.backend import deployer_bp
-    app.register_blueprint(deployer_bp)
-    print("✅ Successfully registered 'deployer_bp' blueprint.")
-except Exception as e:
-    print(f"⚠️ Could not register 'deployer_bp' blueprint. Error: {e}")
 
 # --------------------------
 # SPRING BOOT URL
@@ -182,21 +167,7 @@ def index():
     return send_from_directory(app.static_folder, "index.html")  # frontend/ -> AshApp
 
 # --------------------------
-# DEPLOYER STATIC
-# --------------------------
-@app.route("/deployer")
-def deployer_index():
-    if not session.get("aws_access_key") or not session.get("aws_secret_key"):
-        session.clear()
-        return redirect("/login")
-    return send_from_directory(deployer_frontend_path, "index.html")
-
-@app.route("/deployer/<path:filename>")
-def deployer_static(filename):
-    return send_from_directory(deployer_frontend_path, filename)
-
-# --------------------------
-# API ROUTES
+# API ROUTES (Login, User, Ask, Confirm, History)
 # --------------------------
 @app.route("/api/login", methods=["POST"])
 def api_login():
@@ -278,6 +249,6 @@ def api_history():
 # --------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    print(f"Flask app running on port {port}")
+    print(f"Main AshApp running on port {port}")
     app.run(host="0.0.0.0", port=port)
 

@@ -25,31 +25,17 @@ const logsPre = document.getElementById("logs");
 // Docker Logout (top button)
 // -------------------------
 logoutBtn.onclick = async () => {
-  // Clear Docker session on backend
-  await fetch("/deployer-api/docker-logout", { method: "POST" });
+  await fetch("/deployer-api/docker-logout", {
+    method: "POST",
+    credentials: "same-origin"
+  });
 
-  // Hide deployer UI
   deployerUI.style.display = "none";
-
-  // Show Docker login panel again
   document.getElementById("docker-login-panel").style.display = "flex";
   dockerLoginStatus.textContent = "";
   dockerUserEl.value = "";
   dockerTokenEl.value = "";
 };
-
-// -------------------------
-// Fetch logged-in user
-// -------------------------
-(async function fetchUser() {
-  const res = await fetch("/api/user");
-  const data = await res.json();
-  if (data.logged_in) {
-    usernameSpan.textContent = `Logged in as: ${data.username} (${data.region})`;
-  } else {
-    location.href = "/login";
-  }
-})();
 
 // -------------------------
 // Docker login
@@ -64,7 +50,8 @@ dockerLoginBtn.onclick = async () => {
   const res = await fetch("/deployer-api/docker-login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    credentials: "same-origin"
   });
 
   const data = await res.json();
@@ -96,8 +83,10 @@ validateBtn.onclick = async () => {
   const res = await fetch("/deployer-api/validate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    credentials: "same-origin"
   });
+
   const data = await res.json();
 
   if (!data.success) {
@@ -132,15 +121,17 @@ deployBtn.onclick = async () => {
     k8s_kind: k8sKindEl.value,
     replicas: parseInt(replicasEl.value || "2"),
     service_type: serviceTypeEl.value,
-    container_port: 5000,  // fixed port
+    container_port: 5000,
     namespace: namespaceEl.value || "default"
   };
 
   const res = await fetch("/deployer-api/deploy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    credentials: "same-origin"
   });
+
   const data = await res.json();
 
   if (!data.success) {

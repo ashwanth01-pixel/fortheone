@@ -11,6 +11,24 @@ docker run -d --name ashapp-backend \
   ashwanth01/ashapp-backend:latest
 
 
+cd backend
+docker build -t ashwanth01/flask-app:latest .
+docker push ashwanth01/flask-app:latest
+
+cd history-service
+docker build -t ashwanth01/history-service:latest .
+docker push ashwanth01/history-service:latest
+
+cd ../login
+docker build -t ashwanth01/ashapp-login:latest .
+docker push ashwanth01/ashapp-login:latest
+
+cd ../deployer
+docker build -t ashwanth01/deployer-app:latest .
+docker push ashwanth01/deployer-app:latest
+
+
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:

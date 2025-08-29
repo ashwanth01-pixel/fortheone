@@ -44,6 +44,31 @@ AWS_CLI_PATH = ensure_aws_cli()
 SPRING_BOOT_URL = os.environ.get("SPRING_BOOT_URL", "http://history-service:8081")
 
 # --------------------------
+# MONITORING URL
+# --------------------------
+MONITOR_URL = os.environ.get("MONITOR_URL", "http://localhost:6000/monitor/log")
+
+def log_to_monitor(user_id, service, endpoint, action_type, request_data, response_summary):
+    try:
+        # Mask sensitive info
+        if isinstance(request_data, dict):
+            for key in ["access_key", "secret_key", "token", "password"]:
+                if key in request_data:
+                    request_data[key] = "****"
+        requests.post(MONITOR_URL, json={
+            "user_id": user_id,
+            "service": service,
+            "endpoint": endpoint,
+            "action_type": action_type,
+            "request_data": request_data,
+            "response_summary": response_summary,
+            "ip_address": request.remote_addr if request else "",
+            "user_agent": request.headers.get("User-Agent", "") if request else ""
+        }, timeout=1)
+    except:
+        pass
+
+# --------------------------
 # HISTORY FUNCTIONS
 # --------------------------
 def save_to_history(query, output):
@@ -190,12 +215,31 @@ def api_login():
         session["aws_username"] = identity.get("Arn", "Unknown").split("/")[-1]
         session["aws_account_id"] = identity.get("Account", "")
         print("Login successful:", session["aws_username"])
+
+        # Log login
+        log_to_monitor(
+            user_id=session["aws_username"],
+            service="AshApp",
+            endpoint="/api/login",
+            action_type="login",
+            request_data={"region": region},
+            response_summary={"success": True}
+        )
+
         return jsonify({"success": True, "username": session["aws_username"]})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 400
 
 @app.route("/api/logout", methods=["POST"])
 def api_logout():
+    log_to_monitor(
+        user_id=session.get("aws_username", "anonymous"),
+        service="AshApp",
+        endpoint="/api/logout",
+        action_type="logout",
+        request_data={},
+        response_summary={"success": True}
+    )
     session.clear()
     return jsonify({"success": True})
 
@@ -224,6 +268,16 @@ def api_handler():
     command, output = run_command_from_claude(query)
     formatted_output = f"Command: {command}\n{output.strip()}"
     save_to_history(query, formatted_output)
+
+    log_to_monitor(
+        user_id=session.get("aws_username", "anonymous"),
+        service="AshApp",
+        endpoint="/api/ask",
+        action_type="ask",
+        request_data={"query": query},
+        response_summary={"output": formatted_output[:500]}
+    )
+
     return jsonify({"confirmation_needed": False, "output": formatted_output})
 
 @app.route("/api/confirm", methods=["POST"])
@@ -232,11 +286,29 @@ def api_confirm():
     query = data.get("query")
     decision = data.get("decision")
     if decision.lower() != "accept":
+        log_to_monitor(
+            user_id=session.get("aws_username", "anonymous"),
+            service="AshApp",
+            endpoint="/api/confirm",
+            action_type="confirm-decline",
+            request_data={"query": query, "decision": decision},
+            response_summary={"output": "Action declined."}
+        )
         return jsonify({"output": "Action declined."})
 
     command, output = run_command_from_claude(query)
     formatted_output = f"Command: {command}\n{output.strip()}"
     save_to_history(query, formatted_output)
+
+    log_to_monitor(
+        user_id=session.get("aws_username", "anonymous"),
+        service="AshApp",
+        endpoint="/api/confirm",
+        action_type="confirm-accept",
+        request_data={"query": query, "decision": decision},
+        response_summary={"output": formatted_output[:500]}
+    )
+
     return jsonify({"output": formatted_output})
 
 @app.route("/api/history", methods=["GET"])

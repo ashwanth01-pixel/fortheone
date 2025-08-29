@@ -22,6 +22,31 @@ KUBECTL_BIN = shutil.which("kubectl") or "/usr/bin/kubectl"
 KUBECONFIG = os.environ.get("KUBECONFIG", os.path.expanduser("~/.kube/config"))
 
 # --------------------------
+# MONITORING URL
+# --------------------------
+MONITOR_URL = os.environ.get("MONITOR_URL", "http://localhost:6000/monitor/log")
+
+def log_to_monitor(user_id, service, endpoint, action_type, request_data, response_summary):
+    try:
+        # Mask sensitive info
+        if isinstance(request_data, dict):
+            for key in ["access_key", "secret_key", "docker_token", "password"]:
+                if key in request_data:
+                    request_data[key] = "****"
+        requests.post(MONITOR_URL, json={
+            "user_id": user_id,
+            "service": service,
+            "endpoint": endpoint,
+            "action_type": action_type,
+            "request_data": request_data,
+            "response_summary": response_summary,
+            "ip_address": request.remote_addr if request else "",
+            "user_agent": request.headers.get("User-Agent", "") if request else ""
+        }, timeout=1)
+    except:
+        pass
+
+# --------------------------
 # Blueprint
 # --------------------------
 deployer_bp = Blueprint("deployer_bp", __name__, url_prefix="/deployer-api")
@@ -48,6 +73,16 @@ def docker_login():
 
     session["docker_user"] = user
     session["docker_token"] = token
+
+    log_to_monitor(
+        user_id=user,
+        service="Deployer",
+        endpoint="/deployer-api/docker-login",
+        action_type="docker-login",
+        request_data={"docker_user": user},
+        response_summary={"success": True}
+    )
+
     return jsonify({"success": True, "message": f"Logged in to Docker Hub as {user}"})
 
 
@@ -56,8 +91,19 @@ def docker_login():
 # --------------------------
 @deployer_bp.route("/docker-logout", methods=["POST"])
 def docker_logout():
+    user = session.get("docker_user", "anonymous")
     session.pop("docker_user", None)
     session.pop("docker_token", None)
+
+    log_to_monitor(
+        user_id=user,
+        service="Deployer",
+        endpoint="/deployer-api/docker-logout",
+        action_type="docker-logout",
+        request_data={},
+        response_summary={"success": True}
+    )
+
     return jsonify({"success": True})
 
 
@@ -76,6 +122,15 @@ def validate():
     if "Flask" not in code or "app =" not in code:
         return jsonify({"success": False, "valid": False, "reason": "Code does not look like a Flask app"})
 
+    log_to_monitor(
+        user_id=session.get("docker_user", "anonymous"),
+        service="Deployer",
+        endpoint="/deployer-api/validate",
+        action_type="validate-code",
+        request_data={"app_name": app_name},
+        response_summary={"valid": True}
+    )
+
     return jsonify({"success": True, "valid": True, "app_name": app_name})
 
 
@@ -84,6 +139,7 @@ def validate():
 # --------------------------
 @deployer_bp.route("/deploy", methods=["POST"])
 def deploy():
+    user = session.get("docker_user", "anonymous")
     if "docker_user" not in session or "docker_token" not in session:
         return jsonify({"success": False, "error": "Not logged into Docker Hub"}), 401
 
@@ -99,6 +155,7 @@ def deploy():
     docker_user = session["docker_user"]
     remote_tag = f"{docker_user}/{app_name}:latest"
     logs = []
+    service_url_hint = ""
 
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -215,6 +272,15 @@ spec:
 
     except Exception as e:
         return jsonify({"success": False, "error": str(e), "logs": logs})
+
+    log_to_monitor(
+        user_id=user,
+        service="Deployer",
+        endpoint="/deployer-api/deploy",
+        action_type="deploy-app",
+        request_data={"app_name": app_name, "namespace": namespace, "replicas": replicas},
+        response_summary={"success": True, "image": remote_tag, "service_url_hint": service_url_hint[:500]}
+    )
 
     return jsonify({
         "success": True,

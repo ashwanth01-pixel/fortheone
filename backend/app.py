@@ -39,15 +39,15 @@ def ensure_aws_cli():
 AWS_CLI_PATH = ensure_aws_cli()
 
 # --------------------------
-# SPRING BOOT URL
+# SERVICE URLs
 # --------------------------
 SPRING_BOOT_URL = os.environ.get("SPRING_BOOT_URL", "http://history-service:8081")
-
-# --------------------------
-# MONITORING URL
-# --------------------------
 MONITOR_URL = os.environ.get("MONITOR_URL", "http://flask-monitor:6000/monitor/log")
+DEPLOYER_URL = os.environ.get("DEPLOYER_URL", "http://deployer-app:5000")
 
+# --------------------------
+# MONITORING LOG
+# --------------------------
 def log_to_monitor(user_id, service, endpoint, action_type, request_data, response_summary):
     try:
         # Mask sensitive info
@@ -180,6 +180,19 @@ def serve_login(path):
     if path != "" and os.path.exists(full_path):
         return send_from_directory(login_build_path, path)
     return send_from_directory(login_build_path, "index.html")
+
+# --------------------------
+# NEW: Deployer frontend route (optional)
+# --------------------------
+deployer_build_path = os.path.join(os.path.dirname(__file__), "deployer_frontend", "build")
+
+@app.route("/deployer", defaults={"path": ""})
+@app.route("/deployer/<path:path>")
+def serve_deployer(path):
+    full_path = os.path.join(deployer_build_path, path)
+    if path != "" and os.path.exists(full_path):
+        return send_from_directory(deployer_build_path, path)
+    return send_from_directory(deployer_build_path, "index.html")
 
 # --------------------------
 # MAIN ROUTE (AshApp)
@@ -315,6 +328,30 @@ def api_confirm():
 def api_history():
     history = get_history()
     return jsonify(history)
+
+# --------------------------
+# NEW: Deployer API route
+# --------------------------
+@app.route("/api/deployer", methods=["POST"])
+def api_deployer():
+    data = request.get_json()
+    action = data.get("action")
+    payload = data.get("payload", {})
+
+    try:
+        response = requests.post(f"{DEPLOYER_URL}/execute", json=payload, timeout=5)
+        response.raise_for_status()
+        log_to_monitor(
+            user_id=session.get("aws_username", "anonymous"),
+            service="Deployer",
+            endpoint="/api/deployer",
+            action_type=action,
+            request_data=payload,
+            response_summary={"output": str(response.json())[:500]}
+        )
+        return jsonify(response.json())
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": str(e)}), 500
 
 # --------------------------
 # MAIN

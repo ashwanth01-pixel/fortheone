@@ -30,21 +30,12 @@ spec:
         volumeMounts:
         - name: docker-sock
           mountPath: /var/run/docker.sock
-        - name: kube-bin
-          mountPath: /usr/bin/docker
-          subPath: docker
-        - name: kube-bin
-          mountPath: /usr/bin/kubectl
-          subPath: kubectl
         - name: kubeconfig
           mountPath: /home/appuser/.kube
       volumes:
       - name: docker-sock
         hostPath:
           path: /var/run/docker.sock
-      - name: kube-bin
-        hostPath:
-          path: /usr/bin
       - name: kubeconfig
         hostPath:
           path: /home/ubuntu/.kube

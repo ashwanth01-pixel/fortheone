@@ -8,7 +8,8 @@ spec:
     app: deployer-app
   ports:
     - protocol: TCP
-      port: 5001
-      targetPort: 5001
-  type: ClusterIP
+      port: 5000
+      targetPort: 5000
+      nodePort: 31001
+  type: NodePort
 

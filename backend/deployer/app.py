@@ -24,7 +24,7 @@ KUBECONFIG = os.environ.get("KUBECONFIG", os.path.expanduser("~/.kube/config"))
 # --------------------------
 # MONITORING URL
 # --------------------------
-MONITOR_URL = os.environ.get("MONITOR_URL", "http://localhost:6000/monitor/log")
+MONITOR_URL = os.environ.get("MONITOR_URL", "http://flask-monitor:6000/monitor/log")
 
 def log_to_monitor(user_id, service, endpoint, action_type, request_data, response_summary):
     try:

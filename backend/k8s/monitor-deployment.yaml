@@ -34,5 +34,6 @@ spec:
     - protocol: TCP
       port: 6000
       targetPort: 6000
+      nodePort: 32000
   type: NodePort
 

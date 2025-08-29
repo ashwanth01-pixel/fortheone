@@ -46,7 +46,7 @@ SPRING_BOOT_URL = os.environ.get("SPRING_BOOT_URL", "http://history-service:8081
 # --------------------------
 # MONITORING URL
 # --------------------------
-MONITOR_URL = os.environ.get("MONITOR_URL", "http://localhost:6000/monitor/log")
+MONITOR_URL = os.environ.get("MONITOR_URL", "http://flask-monitor:6000/monitor/log")
 
 def log_to_monitor(user_id, service, endpoint, action_type, request_data, response_summary):
     try:

@@ -3,6 +3,7 @@
 # Exit on any error
 set -e
 
+sudo kubeadm init
 echo "===== Updating system packages ====="
 sudo apt update
 sudo apt upgrade -y
@@ -43,8 +44,6 @@ else
     pip install flask
 fi
 
-echo "===== Initializing Kubernetes cluster ====="
-sudo kubeadm init
 
 echo "===== Setting up kubeconfig for current user ====="
 mkdir -p $HOME/.kube

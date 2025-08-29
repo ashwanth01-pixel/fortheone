@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./   # root backend folder
+      dockerfile: Dockerfile
+    container_name: backend-app
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    depends_on:
+      - deployer
+      - history-service
+      - login
+    networks:
+      - app-network
+
+  deployer:
+    build:
+      context: ./deployer
+      dockerfile: Dockerfile
+    container_name: deployer-app
+    ports:
+      - "5001:5001"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+    networks:
+      - app-network
+
+  history-service:
+    build:
+      context: ./history-services
+      dockerfile: Dockerfile
+    container_name: history-service-app
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  login:
+    build:
+      context: ./login
+      dockerfile: Dockerfile
+    container_name: login-app
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+

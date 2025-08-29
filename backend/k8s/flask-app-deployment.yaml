@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: flask-app
+  namespace: ashapp
   labels:
     app: flask-app
 spec:
@@ -25,7 +26,7 @@ spec:
         - name: KUBECONFIG
           value: "/home/appuser/.kube/config"
         securityContext:
-          runAsUser: 0   # run as root inside the pod
+          runAsUser: 0
         volumeMounts:
         - name: docker-sock
           mountPath: /var/run/docker.sock
@@ -43,8 +44,8 @@ spec:
           path: /var/run/docker.sock
       - name: kube-bin
         hostPath:
-          path: /usr/bin   # this folder contains docker + kubectl on your node
+          path: /usr/bin
       - name: kubeconfig
         hostPath:
-          path: /home/ubuntu/.kube   # adjust if kubeconfig is elsewhere
+          path: /home/ubuntu/.kube
 

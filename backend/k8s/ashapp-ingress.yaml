@@ -1,0 +1,34 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ashapp-ingress
+  namespace: ashapp
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+  - host: localhost
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: flask-app
+            port:
+              number: 5000
+      - path: /deployer
+        pathType: Prefix
+        backend:
+          service:
+            name: deployer-app
+            port:
+              number: 5000
+      - path: /monitor
+        pathType: Prefix
+        backend:
+          service:
+            name: flask-monitor
+            port:
+              number: 6000
+

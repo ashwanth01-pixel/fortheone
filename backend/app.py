@@ -339,7 +339,7 @@ def api_deployer():
     payload = data.get("payload", {})
 
     try:
-        response = requests.post(f"{DEPLOYER_URL}/execute", json=payload, timeout=5)
+        response = requests.post(f"{DEPLOYER_URL}/deployer-api/deploy", json=payload, timeout=5)
         response.raise_for_status()
         log_to_monitor(
             user_id=session.get("aws_username", "anonymous"),
